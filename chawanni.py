@@ -104,6 +104,9 @@ class Blockchain:
 #Creating a Web App
 app = Flask(__name__)
 
+#Creating an address for the node on the Port 5000
+node_address = str(uuid4()).replace('-', '')
+
 blockchain = Blockchain()
 @app.route('/mine_block', methods = ['GET'])
 def mine_block():
@@ -111,13 +114,15 @@ def mine_block():
     previous_proof = previous_block['proof']
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
+    blockchain.add_transaction(sender= node_address, receiver= 'sarthak', amount = 10)
 
     block = blockchain.create_block(proof, previous_hash)
     response = {'message': 'Congrats, you just mined a block', 
                 'index': block['index'],
                 'timestamp': block['timestamp'],
                 'proof': block['proof'],
-                'previous_hash': block['previous_hash']}
+                'previous_hash': block['previous_hash'],
+                'transaction': block['transactions']}
 
     return jsonify(response), 200
 
@@ -129,5 +134,30 @@ def get_chain():
 
     return jsonify(response), 200
 
+#Checking if the BlockChain is valid
+@app.route('/is_valid', methods = ['GET'])
+def is_valid():
+    is_valid = blockchain.is_chain_valid(blockchain.chain)
+
+    if is_valid:
+        response = {'message': 'All good. The Blockchain is valid.'}
+    else :
+        response = {'message': 'We have a problem. The blockchain is not valid'}
+    
+    return jsonify(response), 200
+
+#adding a new transaction to the Blockchain
+@app.route('/add_transaction', methods = ['POST'])
+def add_transaction():
+    json = request.get_json()
+    transaction_keys = ['sender', 'receiver', 'amount']
+
+    if not all (key in json for key in transaction_keys):
+        return 'Some elements of the transactions are missing', 400
+    
+    index = blockchain.add_transaction(json["sender"], json["receiver"], json["amount"])
+    response = {'message': "This transaction will be added in Block" + index}
+
+    return jsonify(response), 201
 #run the app
 app.run(host = '0.0.0.0', port = 5000)
